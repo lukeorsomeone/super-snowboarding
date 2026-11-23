@@ -1,0 +1,48 @@
+[gd_scene format=3 uid="uid://cjwb85bbok05u"]
+
+[ext_resource type="Script" uid="uid://be8exv5md431n" path="res://scripts/game.gd" id="1_game"]
+[ext_resource type="Script" uid="uid://b53vw8h7e3v16" path="res://scripts/course.gd" id="2_course"]
+[ext_resource type="Script" uid="uid://22i14ooy6ym0" path="res://scripts/player.gd" id="3_player"]
+[ext_resource type="Script" uid="uid://rvqs0p0j3b6o" path="res://scripts/chase_camera.gd" id="4_cam"]
+
+[sub_resource type="ProceduralSkyMaterial" id="SkyMat_1"]
+sky_top_color = Color(0, 0.04, 0.8, 1)
+sky_horizon_color = Color(0.4, 0.55, 1, 1)
+ground_bottom_color = Color(0.15, 0.2, 0.5, 1)
+ground_horizon_color = Color(0.4, 0.55, 1, 1)
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("SkyMat_1")
+
+[sub_resource type="Environment" id="Env_1"]
+background_mode = 2
+sky = SubResource("Sky_1")
+ambient_light_source = 3
+ambient_light_energy = 0.9
+tonemap_mode = 3
+tonemap_white = 1.4
+glow_enabled = true
+fog_enabled = true
+fog_light_color = Color(0.55, 0.65, 1, 1)
+fog_density = 0.0025
+fog_sky_affect = 0.2
+
+[node name="Game" type="Node3D" unique_id=619380201]
+script = ExtResource("1_game")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=932669000]
+environment = SubResource("Env_1")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1953227259]
+light_energy = 0.85
+
+[node name="Course" type="Node3D" parent="." unique_id=2001765909]
+script = ExtResource("2_course")
+
+[node name="Player" type="Node3D" parent="." unique_id=161237173]
+script = ExtResource("3_player")
+
+[node name="Camera" type="Camera3D" parent="." unique_id=1814233470]
+current = true
+far = 1500.0
+script = ExtResource("4_cam")

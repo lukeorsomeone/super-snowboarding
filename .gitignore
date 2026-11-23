@@ -1,0 +1,17 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+
+# Built games (too big for GitHub; release them separately)
+*.exe
+*.pck
+*.zip
+
+# Local backups and working files
+/_backup_before_roguelike/
+/Claude outputs/
+*.blend1
+*.bak
+
+# Old third-party music that the game doesn't play
+/assets/music/

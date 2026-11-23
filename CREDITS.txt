@@ -1,0 +1,22 @@
+SUPER SNOWBOARDING! - asset credits
+
+UI art: FREE PSX UI by rohhsa (rohhsa.itch.io)
+  assets/ui/pause_title.png, assets/ui/panel.png
+
+Sound effects: PSX UI Menu SFX Vol.1 and PSX Game UI Events SFX Vol.2
+  by Nomagician Music (nomagician.itch.io)
+  assets/sfx/ui/*
+
+Game font: drawn for this game (scripts/pixel_font.gd).
+
+Logo font: "The Rave Is In Your Pants" by Chequered Ink (via fontspace.com)
+  assets/fonts/rave_logo.ttf
+  Licence: freeware, NON-COMMERCIAL. Buy a commercial licence from
+  https://chequered.ink/font-licenses-for-nal-fonts/ before selling the game.
+
+Intro font: "Emotion Engine" by Neale Davidson / Pixel Sagas (pixelsagas.com)
+  assets/fonts/emotion_engine.ttf
+  Licence: free for personal use; commercial use requires a fee via pixelsagas.com.
+
+Chemistry Set logo and jingle: (c) Chemistry Set
+  assets/intro/*
