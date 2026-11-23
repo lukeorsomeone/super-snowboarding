@@ -84,6 +84,7 @@ var _curve_freq := 1.0
 var _ramp_chance := 0.6
 var _obstacle_base := 0.35
 var _obstacle_ramp := 0.3
+var _obstacle_gap := 1.0            # spacing between obstacle rows (smaller on later laps)
 var _scenery_density := 0.8
 var _bumpiness := 1.0
 var _final: RefCounted = null   # the mall, volcano and moon live in final_themes.gd
@@ -107,6 +108,7 @@ func configure(level: Dictionary) -> void:
 	RAMP_H = level.ramp_h
 	_obstacle_base = level.obstacle_base
 	_obstacle_ramp = level.obstacle_ramp
+	_obstacle_gap = level.get("obstacle_gap", 1.0)
 	_scenery_density = level.get("scenery_density", 0.8)
 	_bumpiness = level.get("bumpiness", 1.0)
 	if _theme in ["mall", "volcano", "moon"]:
@@ -671,7 +673,7 @@ func _place_obstacles(rng: RandomNumberGenerator, d0: float, data: Dictionary,
 					var s := rng.randf_range(0.9, 1.2)
 					data.obstacles.append({"pos": p, "radius": 1.4 * s, "height": 5.0 * s})
 					trees.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * s), p))
-		d += rng.randf_range(9.0, 16.0)
+		d += rng.randf_range(9.0, 16.0) * _obstacle_gap
 
 
 func _place_scenery(rng: RandomNumberGenerator, c: int, d0: float,

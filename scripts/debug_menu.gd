@@ -93,7 +93,7 @@ func do_action(n: int) -> void:
 		3:
 			_ensure_run()
 			Screen.run.cheated = true
-			Screen.run.stage = wrapi(Screen.run.stage + 1, 1, Levels.count() + 1)
+			Screen.run.stage += 1   # carries on into later laps
 			_load_game()
 		4:
 			Screen.rider = wrapi(Screen.rider + 1, 1, Riders.count() + 1)

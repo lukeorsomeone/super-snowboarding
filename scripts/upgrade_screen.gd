@@ -102,7 +102,10 @@ func _refresh() -> void:
 	var names: Array[String] = []
 	for id in run.items:
 		names.append(RunState.get_item(id).name)
-	_owned.text = "YOUR ITEMS: " + (", ".join(names) if not names.is_empty() else "NONE YET")
+	if names.size() > 6:   # a long endless run: the full list won't fit
+		_owned.text = "YOUR ITEMS: %d" % names.size()
+	else:
+		_owned.text = "YOUR ITEMS: " + (", ".join(names) if not names.is_empty() else "NONE YET")
 	var cost: int = run.reroll_cost()
 	if Screen.using_gamepad:
 		_hint.text = "STICK SELECT   A TAKE   Y REROLL (%d GIFTS)" % cost
@@ -147,7 +150,10 @@ func _build() -> void:
 	add_child(root)
 	_rect(root, Color(0.0, 0.02, 0.15, 0.84), Vector2.ZERO, Vector2(320, 240))
 	_label(root, 16, GOLD, Vector2(0, 8), Vector2(320, 18)).text = "STAGE %d CLEAR!" % run.stage
-	var next: String = preload("res://scripts/levels.gd").get_level(run.stage + 1).name
+	var levels := preload("res://scripts/levels.gd")
+	var next: String = levels.get_level(run.stage + 1).name
+	if levels.lap_of(run.stage + 1) > 0:
+		next = "LAP %d %s" % [levels.lap_of(run.stage + 1) + 1, next]
 	_label(root, 8, TEXT, Vector2(0, 30), Vector2(320, 10)).text = "CHOOSE AN ITEM - NEXT: %s" % next
 
 	var left := (320.0 - (CARD.x * 3.0 + GAP * 2.0)) / 2.0

@@ -9,6 +9,13 @@ const UNLOCK_DISTANCE := 5000.0   # metres in one run
 const SLOTS := 8
 ## Thumbnail screenshots, made with res://tools/capture_level_shots.tscn.
 const THUMB_PATH := "res://assets/levels/level_%d.png"
+## Limits on how far each lap can push a level, so late laps stay hard but possible.
+const MAX_SPEED_MULT := 1.5
+const MAX_SLOPE := 0.42
+const MIN_HALF_WIDTH := 10.0       # ramps need at least 7 m either side of centre
+const MAX_CURVE_AMP := 1.8
+const MAX_CURVE_FREQ := 1.7
+const MIN_OBSTACLE_GAP := 0.7
 
 const LEVELS := [
 	{
@@ -278,9 +285,37 @@ static func count() -> int:
 	return LEVELS.size()
 
 
-## Level n (1-based).
+## Level n (1-based). Numbers past the last level wrap back around to the first.
 static func get_level(n: int) -> Dictionary:
-	return LEVELS[clampi(n - 1, 0, LEVELS.size() - 1)]
+	return LEVELS[posmod(maxi(n, 1) - 1, LEVELS.size())]
+
+
+## Laps completed before this stage (0 on the first trip through the levels).
+static func lap_of(stage: int) -> int:
+	@warning_ignore("integer_division")
+	return (maxi(stage, 1) - 1) / LEVELS.size()
+
+
+## Top speed multiplier for a stage. Capped so riders can't pass through obstacles in one tick.
+static func speed_mult(stage: int) -> float:
+	return minf(1.0 + 0.05 * lap_of(stage), MAX_SPEED_MULT)
+
+
+## The level for a run stage, made harder for every lap. Lap one is the level as designed.
+static func for_stage(stage: int) -> Dictionary:
+	var base := get_level(stage)
+	var lap := lap_of(stage)
+	if lap == 0:
+		return base
+	var def: Dictionary = base.duplicate()
+	def.seed = int(base.seed) + lap * 1009   # a new layout of ramps and obstacles every lap
+	def.slope = minf(base.slope + 0.012 * lap, MAX_SLOPE)
+	def.half_width = maxf(base.half_width - 0.8 * lap, MIN_HALF_WIDTH)
+	def.curve_amp = maxf(base.curve_amp, minf(base.curve_amp * (1.0 + 0.06 * lap), MAX_CURVE_AMP))
+	def.curve_freq = maxf(base.curve_freq, minf(base.curve_freq * (1.0 + 0.04 * lap), MAX_CURVE_FREQ))
+	def.obstacle_base = base.obstacle_base + 0.05 * lap   # course.gd caps the final chance
+	def.obstacle_gap = maxf(1.0 - 0.05 * lap, MIN_OBSTACLE_GAP)
+	return def
 
 
 static func is_unlocked(n: int) -> bool:

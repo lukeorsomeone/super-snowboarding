@@ -19,6 +19,7 @@ const RED := Color(1.0, 0.3, 0.38)
 const SPEED_SEGMENTS := 12
 const FLASH_TIME := 0.7
 const TRACK_TIME := 3.5
+const ITEMS_PER_ROW := 14
 
 const HEART := [".##.##.", "#######", "#######", ".#####.", "..###..", "...#...", "......."]
 const GIFT := ["..#.#..", "#######", "#..#..#", "#######", "#..#..#", "#..#..#", "#######"]
@@ -223,11 +224,13 @@ func _draw_progress() -> void:
 	for i in RunState.STAGES:
 		var n: int = i + 1
 		var color := OFF
-		if n < run.stage:
+		if n < run.lap_stage():
 			color = CYAN
-		elif n == run.stage:
+		elif n == run.lap_stage():
 			color = GOLD
 		draw_rect(Rect2(106 + i * 7, 23, 5, 5), color)
+	if run.lap() > 0:
+		_text(163, 21, "L%d" % (run.lap() + 1), GOLD)
 	_text_right(215, 21, "%d M" % _metres, TEXT)
 
 
@@ -254,12 +257,15 @@ func _draw_items() -> void:
 	var n: int = run.items.size()
 	if n == 0:
 		return
-	var w := n * 12 + 3
+	# Long runs can own every item: wrap to a second row before reaching the speed gauge.
+	var rows := 2 if n > ITEMS_PER_ROW else 1
+	var w := mini(n, ITEMS_PER_ROW) * 12 + 3
 	var left := 316.0 - w
-	_plate(Rect2(left, 220, w, 16))
+	var top := 220.0 - (rows - 1) * 12.0
+	_plate(Rect2(left, top, w, 16 + (rows - 1) * 12))
 	for i in n:
 		var id: String = run.items[i]
-		var tile := Rect2(left + 2 + i * 12, 223, 11, 10)
+		var tile := Rect2(left + 2 + (i % ITEMS_PER_ROW) * 12, top + 3 + floori(i / float(ITEMS_PER_ROW)) * 12, 11, 10)
 		var flashing: bool = _flashes.has(id) and fmod(_flashes[id], 0.16) > 0.08
 		draw_rect(tile, Color.WHITE if flashing else Color(0.07, 0.11, 0.34))
 		if ICONS.has(id):
@@ -273,9 +279,10 @@ func _draw_track() -> void:
 	var w := _track.length() * 6.0 + 20.0
 	var slide := minf(minf(TRACK_TIME - _track_left, _track_left) / 0.25, 1.0)
 	var x := roundf(lerpf(322.0, 316.0 - w, slide * (2.0 - slide)))
-	_plate(Rect2(x, 201, w, 15))
-	_icon(NOTE, Vector2(x + 5, 205), GOLD)
-	_text(x + 15, 205, _track, TEXT)
+	var y := 189.0 if run.items.size() > ITEMS_PER_ROW else 201.0   # stays above a second item row
+	_plate(Rect2(x, y, w, 15))
+	_icon(NOTE, Vector2(x + 5, y + 4), GOLD)
+	_text(x + 15, y + 4, _track, TEXT)
 
 
 func _draw_pop() -> void:

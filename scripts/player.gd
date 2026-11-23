@@ -124,7 +124,7 @@ func _update_audio(dt: float) -> void:
 
 ## Applies the run's items. Called at the start of each stage, which recharges them.
 func apply_run(run: RefCounted, level_gravity: float) -> void:
-	max_speed = MAX_SPEED * (1.1 if run.has("wax") else 1.0)
+	max_speed = MAX_SPEED * (1.1 if run.has("wax") else 1.0) * run.speed_mult()
 	turn_mult = 1.2 if run.has("bindings") else 1.0
 	jump_speed = JUMP_SPEED * (1.3 if run.has("boots") else 1.0)
 	spin_rate = AIR_SPIN_RATE * (1.25 if run.has("spin") else 1.0)

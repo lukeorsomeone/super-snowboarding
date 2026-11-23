@@ -72,7 +72,7 @@ func _ready() -> void:
 
 	_build_logo()
 
-	_place(_label("8 STAGES  3 LIVES  ONE RUN", 8, Color(0.75, 0.92, 1.0)), 0.61, 0.67)
+	_place(_label("8 WORLDS  3 LIVES  NO FINISH LINE", 8, Color(0.75, 0.92, 1.0)), 0.61, 0.67)
 	_prompt = _label("PRESS ENTER", 16, Color(1.0, 0.95, 0.5))
 	_place(_prompt, 0.69, 0.79)
 	_help = _label("", 8)
@@ -95,12 +95,9 @@ func _ready() -> void:
 	_best_label.offset_right = -6
 	_best_label.offset_top = 6
 	_best_label.offset_bottom = 16
-	var wins := RunState.load_wins()
 	var best := RunState.load_best_stage()
-	if wins > 0:
-		_best_label.text = "WINS %d" % wins
-	elif best > 0:
-		_best_label.text = "BEST STAGE %d/%d" % [best, RunState.STAGES]
+	if best > 0:
+		_best_label.text = "BEST STAGE %d" % best
 
 	_music = AudioStreamPlayer.new()
 	_music.stream = load("res://assets/title_music.wav")

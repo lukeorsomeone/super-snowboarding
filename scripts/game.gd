@@ -1,6 +1,7 @@
 extends Node3D
-## One stage of a roguelike run: ride to the finish line, then pick an item. Lives, items
-## and score carry through all 8 levels (see run_state.gd). Lose your last life and it's over.
+## One stage of an endless roguelike run: ride to the finish line, then pick an item. Lives,
+## items and score carry through every lap of the 8 levels (see run_state.gd). Lose your last
+## life and it's over.
 
 const InputSetup := preload("res://scripts/input_setup.gd")
 const Levels := preload("res://scripts/levels.gd")
@@ -59,12 +60,12 @@ func _enter_tree() -> void:
 	if Screen.run == null:
 		Screen.run = RunState.new()   # started straight from the editor
 	run = Screen.run
-	Screen.level = run.stage
+	Screen.level = run.lap_stage()
 
 
 func _ready() -> void:
 	InputSetup.setup()
-	level_def = Levels.get_level(Screen.level)
+	level_def = Levels.for_stage(run.stage)
 	_apply_level_look()
 	course.configure(level_def)
 	course.finish_d = run.stage_length()
@@ -254,7 +255,7 @@ func _build_intro_ui() -> void:
 	stage.position = Vector2(0, 12)
 	stage.size = Vector2(320, 10)
 	stage.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	stage.text = "STAGE %d OF %d" % [run.stage, RunState.STAGES]
+	stage.text = run.stage_label()
 	var level_name := _make_label(_intro_labels, 16, Color(1.0, 0.92, 0.4))
 	level_name.position = Vector2(0, 212)
 	level_name.size = Vector2(320, 18)
@@ -360,11 +361,13 @@ func _clear_stage() -> void:
 	run.cheated = run.cheated or Screen.debug_tainted
 	if _stage_crashes == 0:
 		run.clean_stage = true
-	if run.stage >= RunState.STAGES:
-		_finish_run(true)
-		return
 	_new_riders = run.reach_stage(run.stage + 1)
-	_show_big("STAGE CLEAR", 1.4)
+	if run.lap_stage() == RunState.STAGES:   # beat The Moon: on to a harder lap
+		_new_riders.append_array(run.bank_win())
+		_show_big("LAP %d!" % (run.lap() + 2), 1.4)
+		_pop_trick("YOU BEAT THE MOON!" if run.lap() == 0 else "IT GETS HARDER", 1.6)
+	else:
+		_show_big("STAGE CLEAR", 1.4)
 	Screen.sfx("milestone")
 	Screen.rumble(0.5, 0.5, 0.4)
 	_clear_t = 1.5
@@ -403,7 +406,7 @@ func _quit_to_title() -> void:
 
 func _record_run() -> void:
 	run.cheated = run.cheated or Screen.debug_tainted
-	run.finish(false, _total_score())
+	run.finish(_total_score())
 
 
 func _apply_level_look() -> void:
@@ -411,19 +414,15 @@ func _apply_level_look() -> void:
 
 
 func _run_over() -> void:
-	_finish_run(false)
-
-
-func _finish_run(won: bool) -> void:
 	state = State.OVER
 	player.controls_enabled = false
 	player.auto_brake = true
 	run.cheated = run.cheated or Screen.debug_tainted
 	var total := _total_score()
-	var result: Dictionary = run.finish(won, total)
-	Screen.sfx("new_best" if won or result.new_best else "run_over", -2.0, 0.0)
+	var result: Dictionary = run.finish(total)
+	Screen.sfx("new_best" if result.new_best else "run_over", -2.0, 0.0)
 	Screen.rumble(0.5, 0.9, 0.6)
-	_show_big("YOU WIN!" if won else "RUN OVER", 2.5)
+	_show_big("RUN OVER", 2.5)
 	var lines := ""
 	var news: Array[String] = []
 	for rider_name in result.riders:
@@ -436,8 +435,8 @@ func _finish_run(won: bool) -> void:
 		lines += "+%d MORE UNLOCKS\n" % (news.size() - 3)
 	if run.cheated:
 		lines += "DEBUG RUN - NOT SAVED\n"
-	_results_label.text = "%s\n\nREACHED STAGE %d/%d\n%s\n\nITEMS  %d\nGIFTS  %d\nTRICK POINTS  %d\n\nSCORE  %d\n%s\n%s%s" % [
-		"YOU BEAT THE MOON!" if won else "RUN OVER", run.stage, RunState.STAGES, level_def.name,
+	_results_label.text = "%s\n\nREACHED %s\n%s\n\nITEMS  %d\nGIFTS  %d\nTRICK POINTS  %d\n\nSCORE  %d\n%s\n%s%s" % [
+		"RUN OVER", run.stage_label(), level_def.name,
 		run.items.size(), run.gifts_total, run.trick_points, total,
 		"NEW BEST!" if result.new_best else "BEST  %d" % result.best_score,
 		lines + "\n" if lines != "" else "\n",

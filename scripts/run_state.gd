@@ -1,9 +1,11 @@
 extends RefCounted
-## One roguelike run: ride all 8 levels in order on one set of lives, picking an item after
-## each stage. Screen.run holds the current run so it survives scene changes.
+## One endless roguelike run: ride the 8 levels in order on one set of lives, picking an item
+## after each stage. Beating The Moon starts another, harder lap from level 1 until you run out
+## of lives. Screen.run holds the current run so it survives scene changes.
 ## Finishing unlock goals adds new items to the pool for future runs (saved).
 
 const Riders := preload("res://scripts/riders.gd")
+const Levels := preload("res://scripts/levels.gd")
 const SAVE_PATH := "user://super_snowboarding.cfg"
 const STAGES := 8
 const START_LIVES := 3
@@ -43,7 +45,15 @@ const ITEMS := [
 		"goal": "BEAT THE MOON"},
 ]
 
+## Offered once the item pool runs dry on long runs. Used straight away, so they can repeat.
+const REFILLS := [
+	{"id": "patch", "name": "PATCH KIT", "desc": "HEAL 1 LIFE"},
+	{"id": "trophy", "name": "BONUS TROPHY", "desc": "+5000 SCORE"},
+	{"id": "stash", "name": "GIFT STASH", "desc": "+25 GIFTS"},
+]
+
 var stage := 1
+var won := false                # beat The Moon this run (banked once)
 var lives := START_LIVES
 var max_lives := START_LIVES
 var score := 0                  # banked from finished stages
@@ -66,7 +76,7 @@ func _init() -> void:
 
 
 static func get_item(id: String) -> Dictionary:
-	for it in ITEMS:
+	for it in ITEMS + REFILLS:
 		if it.id == id:
 			return it
 	return {}
@@ -76,12 +86,42 @@ func has(id: String) -> bool:
 	return items.has(id)
 
 
-## Metres to the finish line of a stage: gets longer as the run goes on.
+## Laps finished so far (0 on the first trip through the levels).
+func lap() -> int:
+	return Levels.lap_of(stage)
+
+
+## Which of the 8 levels this stage is (1-8).
+func lap_stage(n: int = stage) -> int:
+	return posmod(n - 1, STAGES) + 1
+
+
+func speed_mult() -> float:
+	return Levels.speed_mult(stage)
+
+
+func stage_label() -> String:
+	if lap() == 0:
+		return "STAGE %d OF %d" % [stage, STAGES]
+	return "LAP %d  STAGE %d" % [lap() + 1, stage]
+
+
+## Metres to the finish line: longer through each lap, and 400 m more every lap, forever.
 func stage_length(n: int = stage) -> float:
-	return 1200.0 + 200.0 * (n - 1)
+	return 1200.0 + 200.0 * (lap_stage(n) - 1) + 400.0 * Levels.lap_of(n)
 
 
 func add_item(id: String) -> void:
+	match id:
+		"patch":
+			heal()
+			return
+		"trophy":
+			score += 5000
+			return
+		"stash":
+			gifts += 25
+			return
 	if items.has(id):
 		return
 	items.append(id)
@@ -127,7 +167,14 @@ func roll_offers() -> Array[String]:
 		var t := pool[i]
 		pool[i] = pool[j]
 		pool[j] = t
-	return pool.slice(0, 3)
+	var offers: Array[String] = pool.slice(0, 3)
+	for refill in REFILLS:   # endless runs outlast the item pool: never offer an empty screen
+		if offers.size() >= 3:
+			break
+		if refill.id == "patch" and lives >= max_lives:
+			continue
+		offers.append(refill.id)
+	return offers
 
 
 static func unlocked_ids() -> Array[String]:
@@ -167,8 +214,22 @@ func reach_stage(n: int) -> Array[String]:
 	return Riders.newly_unlocked(old_best, wins, n, wins)
 
 
+## Saves beating The Moon the first time this run does it. Returns riders it unlocks.
+func bank_win() -> Array[String]:
+	if won or cheated:
+		return []
+	won = true
+	var cfg := ConfigFile.new()
+	cfg.load(SAVE_PATH)
+	var best: int = cfg.get_value("roguelike", "best_stage", 0)
+	var old_wins: int = cfg.get_value("roguelike", "wins", 0)
+	cfg.set_value("roguelike", "wins", old_wins + 1)
+	cfg.save(SAVE_PATH)
+	return Riders.newly_unlocked(best, old_wins, best, old_wins + 1)
+
+
 ## Records the finished run once. Returns {new_best, best_score, unlocked: [item names], riders: [names]}.
-func finish(won: bool, total: int) -> Dictionary:
+func finish(total: int) -> Dictionary:
 	var result := {"new_best": false, "best_score": 0, "unlocked": [], "riders": []}
 	var cfg := ConfigFile.new()
 	cfg.load(SAVE_PATH)
@@ -180,9 +241,8 @@ func finish(won: bool, total: int) -> Dictionary:
 	var old_best: int = cfg.get_value("roguelike", "best_stage", 0)
 	var old_wins: int = cfg.get_value("roguelike", "wins", 0)
 	var runs: int = cfg.get_value("roguelike", "runs", 0) + 1
-	var wins: int = cfg.get_value("roguelike", "wins", 0) + (1 if won else 0)
+	var wins := old_wins   # already saved by bank_win()
 	cfg.set_value("roguelike", "runs", runs)
-	cfg.set_value("roguelike", "wins", wins)
 	var best_stage := maxi(old_best, stage)
 	cfg.set_value("roguelike", "best_stage", best_stage)
 	result.riders = Riders.newly_unlocked(old_best, old_wins, best_stage, wins)
