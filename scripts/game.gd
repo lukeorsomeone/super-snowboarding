@@ -60,6 +60,12 @@ func _enter_tree() -> void:
 	if Screen.run == null:
 		Screen.run = RunState.new()   # started straight from the editor
 	run = Screen.run
+	# dev capture: `-- --rider=3 --stage=5` picks the rider and level straight away
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--rider="):
+			Screen.rider = a.substr(8).to_int()
+		elif a.begins_with("--stage="):
+			run.stage = a.substr(8).to_int()
 	Screen.level = run.lap_stage()
 
 
@@ -282,11 +288,20 @@ func _update_intro_ui() -> void:
 # ---------------------------------------------------------------- dev: autopilot capture
 # `-- --autopilot --frames=<dir>` rides automatically (aims at ramps, ollies, spins a 360)
 # and saves every rendered frame — used to make trailers, screenshots and GIFs.
+# Extra options for store-page captures (run with `--fixed-fps 30` for smooth GIFs):
+#   --showcam[=ahead,side,height]  close-up camera in front of the rider (tools/showcase_camera.gd)
+#   --tricks=spin,540,frontflip,backflip  tricks to do on each jump in turn (default: spin)
+#   --native      save the plain 320x240 game picture (no window scaling or HUD)
+#   --seconds=N   quit after N seconds of riding
 
 var _autopilot := false
 var _frames_dir := ""
 var _frame_no := 0
 var _was_air := false
+var _native := false
+var _quit_after := -1.0
+var _tricks: PackedStringArray = ["spin"]
+var _jump_no := -1
 
 
 func _setup_autopilot() -> void:
@@ -295,13 +310,38 @@ func _setup_autopilot() -> void:
 			_autopilot = true
 		elif a.begins_with("--frames="):
 			_frames_dir = a.substr(9)
+		elif a == "--native":
+			_native = true
+		elif a.begins_with("--seconds="):
+			_quit_after = a.substr(10).to_float()
+		elif a.begins_with("--tricks="):
+			_tricks = a.substr(9).split(",")
+		elif a.begins_with("--showcam"):
+			var sc: Camera3D = preload("res://tools/showcase_camera.gd").new()
+			sc.target = player
+			sc.course = course
+			if a.begins_with("--showcam="):
+				var v := a.substr(10).split(",")
+				sc.ahead = v[0].to_float()
+				sc.side = v[1].to_float()
+				sc.height = v[2].to_float()
+			add_child(sc)
+			sc.make_current()
+	if _autopilot:
+		Screen.debug_invincible = true   # keep riding through any bad landing
+		Screen.debug_hide_hud = _native
 	if _frames_dir != "":
 		RenderingServer.frame_post_draw.connect(_save_frame)
 
 
 func _save_frame() -> void:
-	get_tree().root.get_texture().get_image().save_png("%s/f%05d.png" % [_frames_dir, _frame_no])
+	if _native and state != State.RUNNING:
+		return
+	var img: Image = (Screen.viewport if _native else get_tree().root).get_texture().get_image()
+	img.save_png("%s/f%05d.png" % [_frames_dir, _frame_no])
 	_frame_no += 1
+	if _quit_after > 0.0 and race_time >= _quit_after:
+		get_tree().quit()
 
 
 func _hold(action: String, on: bool) -> void:
@@ -311,21 +351,37 @@ func _hold(action: String, on: bool) -> void:
 		Input.action_release(action)
 
 
+func _trick() -> String:
+	return _tricks[maxi(_jump_no, 0) % _tricks.size()]
+
+
 func _drive_autopilot() -> void:
 	if state != State.RUNNING:
 		return
 	var d: float = -player.position.z
 	var air: bool = not player.grounded
 	if air != _was_air:
-		print("AUTOPILOT %s frame=%d d=%d" % ["TAKEOFF" if air else "LANDING", _frame_no, int(d)])
+		if air:
+			_jump_no += 1
+		print("AUTOPILOT %s frame=%d d=%d trick=%s" % ["TAKEOFF" if air else "LANDING", _frame_no, int(d), _trick()])
 		_was_air = air
 	if air:
-		# spin one full rotation, then straighten up to land clean
-		_hold("steer_left", absf(player.spin_accum) < TAU - 0.35)
 		_hold("steer_right", false)
-		_hold("tuck", false)
 		_hold("jump", false)
+		var trick := _trick()
+		var flip: bool = trick.ends_with("flip") and player.launched_from_ramp
+		# spin (or flip) the full amount, then let go and straighten up to land clean
+		var spin_target := TAU - 0.35
+		if trick == "540":
+			spin_target = PI * 3.0 - 0.35
+		elif flip:
+			spin_target = 0.0
+		_hold("steer_left", absf(player.spin_accum) < spin_target)
+		var flipping: bool = flip and absf(player.flip_accum) < TAU - 0.5
+		_hold("tuck", flipping and trick == "frontflip")
+		_hold("brake", flipping and trick == "backflip")
 		return
+	_hold("brake", false)
 	# find the next ramp ahead and line up with it
 	var target_lx := 0.0
 	var ramp_d := -1.0
