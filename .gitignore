@@ -6,6 +6,8 @@
 *.exe
 *.pck
 *.zip
+# Web export (html, js, wasm, icons) lands next to the project
+/Super Snowboarding!.*
 
 # Local backups and working files
 /_backup_before_roguelike/
